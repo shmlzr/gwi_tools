@@ -1,7 +1,9 @@
+import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import plotly.io as pio
 import pandas as pd
 import geopandas as gpd
+import numpy as np
 
 
 def get_position():
@@ -41,7 +43,6 @@ def get_data(dataset_name):
 
 
 def create_heatmap(data, station_name):
-    import numpy as np
 
     data_name = [i for i in data.keys().to_list() if station_name in i][0]
 
@@ -87,11 +88,72 @@ def create_heatmap(data, station_name):
     return fig
 
 
-def show_heatmap(dataset_name, station_name):
+def create_heatmap_mpl(data, station_name):
+
+    data_name = [i for i in data.keys().to_list() if station_name in i][0]
+
+    data = data[data_name]
+
+    DAYS = ['Mon', 'Tues', 'Wed', 'Thurs', 'Fri', 'Sat', 'Sun']
+    MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'June', 'July', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec']
+
+    plt.close('all')
+    fig, ax = plt.subplots(1, 1)
+    start = data.index.min()
+    end = data.index.max()
+    num_days = (end - start).days
+    xticks = pd.date_range('00:00', '23:00', freq='1H').strftime('%H:%M')
+    yticks = {}
+    heatmap = np.full([num_days, 24], np.nan)
+    for day in range(num_days):
+        for time in range(24):
+            date = start + np.timedelta64(time, '1h') + np.timedelta64(day, 'D')
+            # print(date)
+            if date.day == 1:
+                yticks[day] = MONTHS[date.month - 1]
+
+            if date.dayofyear == 1:
+                yticks[day] += f'\n{date.year}'
+
+            # if start <= date < end:
+            if type(data.loc[date]) == np.float64:
+                heatmap[day, time] = data.loc[date]
+            else:
+                heatmap[day, time] = data.loc[date]
+
+    # Plotting
+    mesh = ax.pcolormesh(heatmap, vmin=0, vmax=50, cmap='Oranges')  # , cmap = cmap, edgecolors = 'grey')
+    # vmax=data.max()
+
+    # Invert y-axis
+    ax.invert_yaxis()
+
+    # Hatch for out of bound values in a year
+    ax.patch.set(hatch='xx', edgecolor='black')
+
+    # Set ticks
+    ax.set_yticks(list(yticks.keys()))
+    ax.set_yticklabels(list(yticks.values()))
+    ax.set_xticks([6, 12, 18])
+    ax.set_xticklabels(xticks[[6, 12, 18]])
+
+    plt.title(data_name)
+
+    # Add color bar
+    fig.colorbar(mesh, orientation="vertical")  # , pad=0.2)
+    colorbar = ax.collections[0].colorbar
+
+    return fig
+
+
+def show_heatmap(dataset_name, station_name, mpl):
     center0 = [51.43, 7.66]
     zoom0 = 8
     data = get_data(dataset_name)
-    fig = create_heatmap(data, station_name)
+    if mpl:
+        fig = create_heatmap_mpl(data, station_name)
+    else:
+        fig = create_heatmap(data, station_name)
 
     _, _, location = get_position()
 
@@ -105,14 +167,19 @@ def show_heatmap(dataset_name, station_name):
     return fig, loc_station, zoom
 
 
-def plotting_without_dash():
+def plotting_without_dash(mpl=False):
     pio.renderers.default = "browser"
     dataset_name = 'pm10_2018'
     data = get_data(dataset_name)
     station_name = data.keys().to_list()[0]  # first in row
-    fig, _, _ = show_heatmap(dataset_name, station_name)
+    fig, _, _ = show_heatmap(dataset_name, station_name, mpl)
     fig.show()
 
 
 if __name__ == '__main__':
-    plotting_without_dash()
+
+    # with matplotlib
+    plotting_without_dash(mpl=True)
+
+    # with plotly
+    plotting_without_dash(mpl=False)
