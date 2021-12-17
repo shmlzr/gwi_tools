@@ -94,8 +94,9 @@ def show_heatmap(dataset_name, station_name):
     fig = create_heatmap(data, station_name)
 
     _, _, location = get_position()
+
     try:
-        loc_station = location.loc[location['station_name'].str.contains(station_name)].loc[0]
+        loc_station = location.loc[location['station_name'].str.contains(station_name[:4])].loc[0]
         loc_station = [loc_station.geometry.y, loc_station.geometry.x]
         zoom = 10
     except:
@@ -107,8 +108,11 @@ def show_heatmap(dataset_name, station_name):
 def plotting_without_dash():
     pio.renderers.default = "browser"
     dataset_name = 'pm10_2018'
-    station_name = 'AABU'
+    data = get_data(dataset_name)
+    station_name = data.keys().to_list()[0]  # first in row
     fig, _, _ = show_heatmap(dataset_name, station_name)
     fig.show()
 
 
+if __name__ == '__main__':
+    plotting_without_dash()
